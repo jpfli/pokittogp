@@ -2,8 +2,8 @@
 #include "PokittoCookie.h"
 #include "fix16.h"
 #include "playerShip.h"
+#include "npcShip.h"
 
-const fix16_t fxInitialRotVel = fix16_pi / 1000;
 const uint8_t amplitude = 170;
 const int8_t wavetype = 1;
 const int8_t wavetypeCrash = 4;
@@ -23,13 +23,14 @@ CPlayerShip::CPlayerShip()
 
     // *** Setup sound
     m_tonefreq=0;
-   m_fxCameraBehindPlayerTarget = fxCameraBehindPlayerY;
+    m_fxCameraBehindPlayerTarget = fxCameraBehindPlayerY;
     m_fxCameraBehindPlayerCurrent = fxCameraBehindPlayerY;
 }
 
 void CPlayerShip::Update()
 {
-    fix16_t fxVelOld = m_fxVel;
+    fix16_t fxVelOld = fix16_mul(fix16_cos(Yaw()), VelocityX())+fix16_mul(fix16_sin(Yaw()), VelocityY());
+    fxVelOld /= 35;
     bool prevCollided = m_isCollided;
 
     m_bitmap = billboard_object_bitmaps[0];  // org car
@@ -51,6 +52,7 @@ void CPlayerShip::Update()
         {
             m_jumpAnimValue = CAnimValue::GetFreeElement();
             m_jumpAnimValue->Start( 1500, 0, fix16_pi, this, 0 );
+            ToggleJump(true);
         }
     }
     else if( tileIndex == 15 )
@@ -60,6 +62,7 @@ void CPlayerShip::Update()
         {
             m_boosterAnimValue = CAnimValue::GetFreeElement();
             m_boosterAnimValue->Start( 1000, fix16_one, fix16_one, this, 1 );
+            ToggleBooster(true);
         }
     }
     else if( ! m_jumpAnimValue && tileIndex != 5 && tileIndex != 6 &&
@@ -88,6 +91,17 @@ void CPlayerShip::Update()
     // Read keys.
     HandleGameKeys();
 
+    // ======================================
+    // Physics based driving model experiment
+    fix16_t fxVel_x0 = VelocityX();
+    fix16_t fxVel_y0 = VelocityY();
+    UpdatePhysics();
+    m_fxX += fix16_mul((fxVel_x0+VelocityX())>>1, DeltaTime());
+    m_fxY += fix16_mul((fxVel_y0+VelocityY())>>1, DeltaTime());
+    m_fxVel = fix16_mul(fix16_cos(Yaw()), VelocityX())+fix16_mul(fix16_sin(Yaw()), VelocityY());
+    m_fxVel /= 35;
+    // ======================================
+
     // Boost
     if( m_boosterAnimValue )
         m_fxVel = g_fxBoostVel;
@@ -114,48 +128,27 @@ void CPlayerShip::Update()
         }
     }
 
-    // Limit turning speed
-    if(m_fxRotVel>fxInitialRotVel*10)
-        m_fxRotVel = fxInitialRotVel*10;
-
     // Limit speed
     if(m_fxVel>fxMaxSpeed && m_boosterAnimValue==NULL )
         m_fxVel = fxMaxSpeed;
     else if(m_fxVel<-fxMaxSpeed)
         m_fxVel = -fxMaxSpeed;
 
-    fix16_t fxCos = fix16_cos(m_fxAngle);
-    fix16_t fxSin = fix16_sin(m_fxAngle);
-
-    fix16_t fxVelX = fix16_mul(m_fxVel, fxCos);
-    fix16_t fxVelY = fix16_mul(m_fxVel, fxSin);
-
     if( m_fxImpulseAcc != 0 )
     {
         // Move ship along the impulse.
-        fix16_t fxImpulseCos = fix16_cos( m_fxImpulseAngle );
-        fix16_t fxImpulseSin = fix16_sin( m_fxImpulseAngle );
-        fix16_t fxImpulseVelX = fix16_mul( m_fxImpulseAcc, fxImpulseCos );
-        fix16_t fxImpulseVelY = fix16_mul( m_fxImpulseAcc, fxImpulseSin );
-        fxVelX += fxImpulseVelX;
-        fxVelY += fxImpulseVelY;
-#if 0
-        // Project impulse on ship acc vector
-        // Get the angle between impulse and ship
-        fix16_t fxAngleBetween = m_fxAngle - fxShipAngle;
-        fix16_t fxAngleBetweenCos = fix16_cos( fxAngleBetween );
-        fix16_t fxImpulseVecOnShipVec = fix16_mul( m_fxVel, fxAngleBetweenCos );
-        m_fxVel += fxImpulseVecOnShipVec;
-        if( m_fxVel < 0 )
-            m_fxVel = 0;
-#endif
+        fix16_t fxImpulseCos = fix16_cos(m_fxImpulseAngle);
+        fix16_t fxImpulseSin = fix16_sin(m_fxImpulseAngle);
+        m_fxX += fix16_mul(m_fxImpulseAcc, fxImpulseCos);
+        m_fxY += fix16_mul(m_fxImpulseAcc, fxImpulseSin);
+
         // Reset impulse
         m_fxImpulseAngle = 0;
         m_fxImpulseAcc = 0;
     }
 
-    m_fxX += fxVelX;
-    m_fxY += fxVelY;
+//    m_fxX += fxVelX;
+//    m_fxY += fxVelY;
 
     // Change sound effect if needed.
     if(fxVelOld != m_fxVel || prevCollided != m_isCollided )
@@ -168,7 +161,7 @@ void CPlayerShip::Update()
         else
         {
             // Sound by the speed
-            m_tonefreq = fix16_to_int(abs(m_fxVel*5));
+            m_tonefreq = (IsSliding()) ? 35 : fix16_to_int(abs(m_fxVel*5));
             if(m_tonefreq>50) m_tonefreq = 50;
                 //snd.playTone(1,m_tonefreq,amplitude,wavetype,arpmode);
             setOSC(&osc1,1,wavetype,1,0,0,m_tonefreq,amplitude,0,0,0,0,0,0,arpmode,1,0);
@@ -299,10 +292,10 @@ void CPlayerShip::CalculateRank()
 {
     int32_t numOfCarsWithBetterRank = 0;
     int8_t activeWaypointIndex = m_activeWaypointIndex + 1;  // active waypoint is 1 less for player than for other ships
-    for(int32_t i=1; i < g_shipCount; i++)
+    for(int32_t i=0; i < g_shipCount; i++)
     {
-        if( g_ships[i]->m_activeLapNum > m_activeLapNum ||
-            ( g_ships[i]->m_activeLapNum == m_activeLapNum && g_ships[i]->m_activeWaypointIndex >= activeWaypointIndex ))
+        if( g_ships[i].m_activeLapNum > m_activeLapNum ||
+            ( g_ships[i].m_activeLapNum == m_activeLapNum && g_ships[i].m_activeWaypointIndex >= activeWaypointIndex ))
         {
             numOfCarsWithBetterRank++;
         }
@@ -315,12 +308,14 @@ void CPlayerShip::Reset()
 {
     CShip::Reset();
 
+    m_activeLapNum = 1;
+    m_lapTimingState = enumReadyToStart;
+
      // Reset game
     m_fxX = fix16_from_int(45);
     m_fxY = fix16_from_int(550);
     m_fxVel = 0;
-    m_fxAngle = fix16_pi>>1;
-    m_fxRotVel = fxInitialRotVel;
+    SetYaw(fix16_pi>>1);
     m_fxCameraBehindPlayerTarget = fxCameraBehindPlayerY;
     m_fxCameraBehindPlayerCurrent = fxCameraBehindPlayerY;
     m_currentRank = 0;
@@ -328,9 +323,10 @@ void CPlayerShip::Reset()
     m_requestedMenuMode = CMenu::enumNoMenu;
     //!!!HV snd.ampEnable(1);
     //snd.playTone(1,m_tonefreq,amplitude,wavetype,arpmode);
+    m_tonefreq = 0;
     setOSC(&osc1,1,wavetype,1,0,0,m_tonefreq,amplitude,0,0,0,0,0,0,arpmode,1,0);
     //for( int32_t i = 0; i < 50 && i < waypointCount; i++ ) m_waypointsVisited[ i ] = false;
-    m_activeWaypointIndex = -1;
+    m_activeWaypointIndex = 0;
     m_lastCheckedWPIndex = -1;
     m_doRecalcRank = false;
     m_activeWaypointFoundTimeInMs = 0;
@@ -353,51 +349,61 @@ void CPlayerShip::HandleGameKeys()
     if( mygame.buttons.aBtn() && mygame.buttons.bBtn() && mygame.buttons.cBtn() )
         CalcFreeRamAndHang();
 
+    SetSteering(0);
+    SetThrottle(0);
+    SetBraking(0);
+
     // Turn left
     if(mygame.buttons.leftBtn()) {
-        if( ! m_isTurningLeft )
-            m_fxRotVel = fxInitialRotVel; // Reset to initial velocity when started turning
-        m_fxAngle += m_fxRotVel;
-        m_isTurningLeft = true;
-        m_fxRotVel = fix16_mul(m_fxRotVel, fxRotAccFactor);
+        SetSteering(100);
+
+//        if( ! m_isTurningLeft )
+//            m_fxRotVel = fxInitialRotVel; // Reset to initial velocity when started turning
+//        m_fxAngle += m_fxRotVel;
+//        m_isTurningLeft = true;
+//        m_fxRotVel = fix16_mul(m_fxRotVel, fxRotAccFactor);
     }
-    else {
-        if( m_isTurningLeft )
-            m_fxRotVel = fxInitialRotVel;
-        m_isTurningLeft = false;
-    }
+//    else {
+//        if( m_isTurningLeft )
+//            m_fxRotVel = fxInitialRotVel;
+//        m_isTurningLeft = false;
+//    }
 
     // Turn right
     if(mygame.buttons.rightBtn()) {
-        if( ! m_isTurningRight )
-            m_fxRotVel = fxInitialRotVel; // Reset to initial velocity when started turning
-        m_fxAngle -= m_fxRotVel;
-        m_isTurningRight = true;
-        m_fxRotVel = fix16_mul(m_fxRotVel, fxRotAccFactor);
+        SetSteering(-100);
+
+//        if( ! m_isTurningRight )
+//            m_fxRotVel = fxInitialRotVel; // Reset to initial velocity when started turning
+//        m_fxAngle -= m_fxRotVel;
+//        m_isTurningRight = true;
+//        m_fxRotVel = fix16_mul(m_fxRotVel, fxRotAccFactor);
     }
-    else {
-        if( m_isTurningRight )
-            m_fxRotVel = fxInitialRotVel;
-        m_isTurningRight = false;
-    }
+//    else {
+//        if( m_isTurningRight )
+//            m_fxRotVel = fxInitialRotVel;
+//        m_isTurningRight = false;
+//    }
 
 
     // Thrust
     if(mygame.buttons.aBtn()) {
+        SetThrottle(100);
 
         if(!m_isCollided || m_fxVel<=fxMaxSpeedCollided)
         {
-            m_fxVel = m_fxVel + (fix16_one>>4);
+//            m_fxVel = m_fxVel + (fix16_one>>4);
             m_fxCameraBehindPlayerTarget = fxCameraBehindPlayerY + fix16_from_int(3);
         }
     }
 
     // Reverse
     else if(mygame.buttons.bBtn()) {
+        SetBraking(100);
 
         if(!m_isCollided || m_fxVel>=fxMaxSpeedCollided)
         {
-            m_fxVel = m_fxVel - (fix16_one>>4);
+//            m_fxVel = m_fxVel - (fix16_one>>4);
             m_fxCameraBehindPlayerTarget = fxCameraBehindPlayerY - fix16_from_int(5);
         }
     }
@@ -439,9 +445,12 @@ void CPlayerShip::HandleGameKeys()
 // Animation finished.
 void CPlayerShip::Finished( int32_t par )
 {
-    if(par==0)
+    if(par==0) {
         m_jumpAnimValue = NULL;
-    else if(par==1)
+        ToggleJump(false);
+    }
+    else if(par==1) {
         m_boosterAnimValue = NULL;
+        ToggleBooster(false);
+    }
 }
-
