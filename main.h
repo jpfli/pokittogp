@@ -9,7 +9,7 @@
 
 // #define TEST_SHOW_INFO_OF_SHIP_NUM 1
 
-class CShip;
+class CNpcShip;
 class CPlayerShip;
 
 // Constants
@@ -150,7 +150,7 @@ extern uint8_t* g_BackgroundTileBitmap;
 extern uint32_t g_frameNum;
 extern bool g_isRace;
 extern uint32_t g_shipCount;
-extern CShip* g_ships[];
+extern CNpcShip g_ships[];
 
 // *** Function protptypes
 
