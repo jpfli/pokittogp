@@ -65,7 +65,7 @@ bool TrackImporter::ReadFromROMAndValidateTrack(
 bool TrackImporter::ReadAndValidateTrack( char* myTrack1, uint16_t len, char* trackDirName, char* trackFileName,
     /*OUT*/char* myTrack2, /*OUT*/char* trackName, /*OUT*/char* authorName )
 {
-    // If a file contains only the decimal bytes 9–13, 32–126, it's probably a pure ASCII text file.
+    // If a file contains only the decimal bytes 9-13, 32-126, it's probably a pure ASCII text file.
     for(int32_t i=0; i<len; i++)
     {
         if(! ( (myTrack1[i]>=9 && myTrack1[i]<=13) || (myTrack1[i]>=32 && myTrack1[i]<=126) ) )
@@ -314,12 +314,8 @@ bool TrackImporter::ReadTrackObjects( char* buffer, int32_t blockSize, bool read
             // Add a new waypoint
             waypoints[wp].x = x;
             waypoints[wp].y = y;
-            if( vel == 100 )
-                waypoints[wp].fxTargetSpeed = fxDefaultOtherShipSpeed;
-            else if( vel == 75 )
-                waypoints[wp].fxTargetSpeed = fxDefaultOtherShipSpeedInCorner;
-            else
-                waypoints[wp].fxTargetSpeed = fxDefaultOtherShipSpeedInSlowCorner;
+            waypoints[wp].fxRadius = fix16_from_int(radius);
+            waypoints[wp].fxTargetSpeed = fix16_from_int(vel);
 
             wp++;
         }
