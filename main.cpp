@@ -174,7 +174,7 @@ int main () {
             // Disable drawing if a full screen menu it in use.
             if(!menu.m_isOpen || !menu.m_isFullScreenView )
             {
-                fix16_t fxCamAngle = g_playerShip.m_fxAngle - (fix16_pi>>1);
+                fix16_t fxCamAngle = g_playerShip.Yaw() - (fix16_pi>>1);
 
                 // Draw sky
                 fix16_t fxAnglePositive =  ((fxCamAngle) % (fix16_pi<<1)) +  (fix16_pi<<1);
@@ -195,7 +195,7 @@ int main () {
                 DrawMode7( fix16_to_int(fxCamX), fix16_to_int(fxCamY), fxCamAngle, fxRotateCenterX, fxRotateCenterY, PerspectiveScaleX, PerspectiveScaleY, sceneryH);
 
                 // Draw 3d objects and check collisions.
-                g_playerShip.m_isCollidedToPlayerShip = Draw3dObects(fxCamX, fxCamY, fxCamAngle);
+                Draw3dObects(fxCamX, fxCamY, fxCamAngle);
 
                 // Draw the current lap time
                 int32_t lapStartX = 110-5;  // 5 pixel margin
@@ -623,17 +623,6 @@ void InitGameObjectsForTrack1(bool isRace)
         g_playerShip.m_bitmapH = *(g_objects3d[o3dIndex]->m_bitmap - 1);
         g_playerShip.m_fxScaledWidth = g_objects3d[o3dIndex]->m_bitmapW * fxScaledSizeFactor;
         g_playerShip.m_fxScaledHeight = g_objects3d[o3dIndex]->m_bitmapH * fxScaledSizeFactor;
-        g_playerShip.m_fxVel = 0;
-        g_playerShip.m_fxAcc = 0;
-        g_playerShip.m_fxDeacc = 0;
-        g_playerShip.m_fxRotVel = 0;
-        g_playerShip.m_fxMaxSpeed = 0;
-        g_playerShip.m_fxCornerSpeed1 = 0;
-        g_playerShip.m_fxCornerSpeed2 = 0;
-        g_playerShip.m_fxWaypointTargetSpeed = 0;
-        g_playerShip.m_fxAngle = fix16_pi>>1;
-        g_playerShip.m_activeWaypointIndex = 0;
-        g_playerShip.Reset();
 
     }
     else
@@ -650,9 +639,7 @@ void InitGameObjectsForTrack1(bool isRace)
 
         // Player Ship
         int32_t i=0;
-        //ii = i + (2*8);
         int32_t shipIndex = 0;
-        //o3dIndex++;
 
         g_objects3d[o3dIndex] = &g_playerShip;
         g_objects3d[o3dIndex]->m_bitmap = billboard_object_bitmaps[0];
@@ -661,23 +648,11 @@ void InitGameObjectsForTrack1(bool isRace)
         g_objects3d[o3dIndex]->m_fxScaledWidth = g_objects3d[o3dIndex]->m_bitmapW * fxScaledSizeFactor;
         g_objects3d[o3dIndex]->m_fxScaledHeight = g_objects3d[o3dIndex]->m_bitmapH * fxScaledSizeFactor;
         g_ships[shipIndex] = &g_playerShip;
-        g_ships[shipIndex]->m_fxVel = 0;
-        g_ships[shipIndex]->m_fxAcc = 0;
-        g_ships[shipIndex]->m_fxDeacc = 0;
-        g_ships[shipIndex]->m_fxRotVel = 0;
-        g_ships[shipIndex]->m_fxMaxSpeed = 0;
-        g_ships[shipIndex]->m_fxCornerSpeed1 = 0;
-        g_ships[shipIndex]->m_fxCornerSpeed2 = 0;
-        g_ships[shipIndex]->m_fxWaypointTargetSpeed = 0;
-        g_ships[shipIndex]->m_fxAngle = fix16_pi>>1;
-        g_ships[shipIndex]->m_activeWaypointIndex = 0;
-        g_playerShip.Reset();
 
         #if !defined(TEST_SHOW_INFO_OF_SHIP_NUM) || TEST_SHOW_INFO_OF_SHIP_NUM == 1 // if TEST_SHOW_INFO_OF_SHIP_NUM is set add only that ship
 
         // Ship 1: fast in streight road, slow in corners
         i=1;
-        //o3dIndex = i + (2*8);
         o3dIndex++;
         shipIndex++;
 
@@ -693,16 +668,7 @@ void InitGameObjectsForTrack1(bool isRace)
         g_objects3d[o3dIndex]->m_fxScaledWidth = g_objects3d[o3dIndex]->m_bitmapW * fxScaledSizeFactor;
         g_objects3d[o3dIndex]->m_fxScaledHeight = g_objects3d[o3dIndex]->m_bitmapH * fxScaledSizeFactor;
         g_ships[shipIndex] = &g_ShipObjectArray[i];
-        g_ships[shipIndex]->m_fxVel = 0;
-        g_ships[shipIndex]->m_fxAcc = fix16_from_float(0.200);
-        g_ships[shipIndex]->m_fxDeacc = fix16_from_float(3.0);
-        g_ships[shipIndex]->m_fxRotVel = fix16_pi / 100;
-        g_ships[shipIndex]->m_fxMaxSpeed = fxDefaultOtherShipSpeed;
-        g_ships[shipIndex]->m_fxCornerSpeed1 = fxDefaultOtherShipSpeedInCorner;
-        g_ships[shipIndex]->m_fxCornerSpeed2 = fxDefaultOtherShipSpeedInSlowCorner;
-        g_ships[shipIndex]->m_fxWaypointTargetSpeed = g_ships[shipIndex]->m_fxMaxSpeed;
-        g_ships[shipIndex]->m_fxAngle = fix16_pi>>1;
-        g_ships[shipIndex]->m_activeWaypointIndex = 0;
+        g_ships[shipIndex]->SetAIAggressiveness(100);
 
         #endif
 
@@ -710,7 +676,6 @@ void InitGameObjectsForTrack1(bool isRace)
 
         // Ship 2: slow in streight road, fast in corners
         i=2;
-        //o3dIndex = i + (2*8);
         o3dIndex++;
         shipIndex++;
 
@@ -723,16 +688,7 @@ void InitGameObjectsForTrack1(bool isRace)
         g_objects3d[o3dIndex]->m_fxScaledWidth = g_objects3d[o3dIndex]->m_bitmapW * fxScaledSizeFactor;
         g_objects3d[o3dIndex]->m_fxScaledHeight = g_objects3d[o3dIndex]->m_bitmapH * fxScaledSizeFactor;
         g_ships[shipIndex] = &g_ShipObjectArray[i];
-        g_ships[shipIndex]->m_fxVel = 0;
-        g_ships[shipIndex]->m_fxAcc = fix16_from_float(0.200);
-        g_ships[shipIndex]->m_fxDeacc = fix16_from_float(3.0);
-        g_ships[shipIndex]->m_fxRotVel = fix16_pi / 50;
-        g_ships[shipIndex]->m_fxMaxSpeed = fix16_mul(fxDefaultOtherShipSpeed, fix16_from_float(0.7) );
-        g_ships[shipIndex]->m_fxCornerSpeed1 = fix16_mul(fxDefaultOtherShipSpeedInCorner, fix16_from_float(1.2) );
-        g_ships[shipIndex]->m_fxCornerSpeed2 = fix16_mul(fxDefaultOtherShipSpeedInSlowCorner, fix16_from_float(1.2) );
-        g_ships[shipIndex]->m_fxWaypointTargetSpeed = g_ships[shipIndex]->m_fxMaxSpeed;
-        g_ships[shipIndex]->m_fxAngle = fix16_pi>>1;
-        g_ships[shipIndex]->m_activeWaypointIndex = 0;
+        g_ships[shipIndex]->SetAIAggressiveness(90);
 
         #endif
 
@@ -740,7 +696,6 @@ void InitGameObjectsForTrack1(bool isRace)
 
         // Ship 3: slow in streight road, fast in corners
         i=3;
-        //o3dIndex = i + (2*8);
         o3dIndex++;
         shipIndex++;
 
@@ -753,16 +708,7 @@ void InitGameObjectsForTrack1(bool isRace)
         g_objects3d[o3dIndex]->m_fxScaledWidth = g_objects3d[o3dIndex]->m_bitmapW * fxScaledSizeFactor;
         g_objects3d[o3dIndex]->m_fxScaledHeight = g_objects3d[o3dIndex]->m_bitmapH * fxScaledSizeFactor;
         g_ships[shipIndex] = &g_ShipObjectArray[i];
-        g_ships[shipIndex]->m_fxVel = 0;
-        g_ships[shipIndex]->m_fxAcc = fix16_from_float(0.200);
-        g_ships[shipIndex]->m_fxDeacc = fix16_from_float(3.0);
-        g_ships[shipIndex]->m_fxRotVel = fix16_pi / 50;
-        g_ships[shipIndex]->m_fxMaxSpeed = fix16_mul(fxDefaultOtherShipSpeed, fix16_from_float(0.6) );
-        g_ships[shipIndex]->m_fxCornerSpeed1 = fix16_mul(fxDefaultOtherShipSpeedInCorner, fix16_from_float(1.2) );
-        g_ships[shipIndex]->m_fxCornerSpeed2 = fix16_mul(fxDefaultOtherShipSpeedInSlowCorner, fix16_from_float(1.2) );
-        g_ships[shipIndex]->m_fxWaypointTargetSpeed = g_ships[shipIndex]->m_fxMaxSpeed;
-        g_ships[shipIndex]->m_fxAngle = fix16_pi>>1;
-        g_ships[shipIndex]->m_activeWaypointIndex = 0;
+        g_ships[shipIndex]->SetAIAggressiveness(85);
 
         #endif
 
@@ -770,7 +716,6 @@ void InitGameObjectsForTrack1(bool isRace)
 
         // Ship 4: fast in streight road, slow in corners
         i=4;
-        //o3dIndex = i + (2*8);
         o3dIndex++;
         shipIndex++;
 
@@ -783,16 +728,7 @@ void InitGameObjectsForTrack1(bool isRace)
         g_objects3d[o3dIndex]->m_fxScaledWidth = g_objects3d[o3dIndex]->m_bitmapW * fxScaledSizeFactor;
         g_objects3d[o3dIndex]->m_fxScaledHeight = g_objects3d[o3dIndex]->m_bitmapH * fxScaledSizeFactor;
         g_ships[shipIndex] = &g_ShipObjectArray[i];
-        g_ships[shipIndex]->m_fxVel = 0;
-        g_ships[shipIndex]->m_fxAcc = fix16_from_float(0.200);
-        g_ships[shipIndex]->m_fxDeacc = fix16_from_float(3.0);
-        g_ships[shipIndex]->m_fxRotVel = fix16_pi / 100;
-        g_ships[shipIndex]->m_fxMaxSpeed = fix16_mul(fxDefaultOtherShipSpeed, fix16_from_float(0.9) );
-        g_ships[shipIndex]->m_fxCornerSpeed1 = fxDefaultOtherShipSpeedInCorner;
-        g_ships[shipIndex]->m_fxCornerSpeed2 = fxDefaultOtherShipSpeedInSlowCorner;
-        g_ships[shipIndex]->m_fxWaypointTargetSpeed = g_ships[shipIndex]->m_fxMaxSpeed;
-        g_ships[shipIndex]->m_fxAngle = fix16_pi>>1;
-        g_ships[shipIndex]->m_activeWaypointIndex = 0;
+        g_ships[shipIndex]->SetAIAggressiveness(80);
 
         #endif
 
@@ -800,7 +736,6 @@ void InitGameObjectsForTrack1(bool isRace)
 
         // Ship 5: slow in streight road, fast in corners
         i=5;
-        //o3dIndex = i + (2*8);
         o3dIndex++;
         shipIndex++;
 
@@ -813,16 +748,7 @@ void InitGameObjectsForTrack1(bool isRace)
         g_objects3d[o3dIndex]->m_fxScaledWidth = g_objects3d[o3dIndex]->m_bitmapW * fxScaledSizeFactor;
         g_objects3d[o3dIndex]->m_fxScaledHeight = g_objects3d[o3dIndex]->m_bitmapH * fxScaledSizeFactor;
         g_ships[shipIndex] = &g_ShipObjectArray[i];
-        g_ships[shipIndex]->m_fxVel = 0;
-        g_ships[shipIndex]->m_fxAcc = fix16_from_float(0.200);
-        g_ships[shipIndex]->m_fxDeacc = fix16_from_float(3.0);
-        g_ships[shipIndex]->m_fxRotVel = fix16_pi / 50;
-        g_ships[shipIndex]->m_fxMaxSpeed = fix16_mul(fxDefaultOtherShipSpeed, fix16_from_float(0.4) );
-        g_ships[shipIndex]->m_fxCornerSpeed1 = fix16_mul(fxDefaultOtherShipSpeedInCorner, fix16_from_float(1.2) );
-        g_ships[shipIndex]->m_fxCornerSpeed2 = fix16_mul(fxDefaultOtherShipSpeedInSlowCorner, fix16_from_float(1.2) );
-        g_ships[shipIndex]->m_fxWaypointTargetSpeed = g_ships[shipIndex]->m_fxMaxSpeed;
-        g_ships[shipIndex]->m_fxAngle = fix16_pi>>1;
-        g_ships[shipIndex]->m_activeWaypointIndex = 0;
+        g_ships[shipIndex]->SetAIAggressiveness(75);
 
         #endif
 
@@ -830,7 +756,6 @@ void InitGameObjectsForTrack1(bool isRace)
 
         // Ship 6: fast in streight road, slow in corners
         i=6;
-        //o3dIndex = i + (2*8);
         o3dIndex++;
         shipIndex++;
 
@@ -843,16 +768,7 @@ void InitGameObjectsForTrack1(bool isRace)
         g_objects3d[o3dIndex]->m_fxScaledWidth = g_objects3d[o3dIndex]->m_bitmapW * fxScaledSizeFactor;
         g_objects3d[o3dIndex]->m_fxScaledHeight = g_objects3d[o3dIndex]->m_bitmapH * fxScaledSizeFactor;
         g_ships[shipIndex] = &g_ShipObjectArray[i];
-        g_ships[shipIndex]->m_fxVel = 0;
-        g_ships[shipIndex]->m_fxAcc = fix16_from_float(0.200);
-        g_ships[shipIndex]->m_fxDeacc = fix16_from_float(3.0);
-        g_ships[shipIndex]->m_fxRotVel = fix16_pi / 100;
-        g_ships[shipIndex]->m_fxMaxSpeed = fix16_mul(fxDefaultOtherShipSpeed, fix16_from_float(0.6) );
-        g_ships[shipIndex]->m_fxCornerSpeed1 = fxDefaultOtherShipSpeedInCorner;
-        g_ships[shipIndex]->m_fxCornerSpeed2 = fxDefaultOtherShipSpeedInSlowCorner;
-        g_ships[shipIndex]->m_fxWaypointTargetSpeed = g_ships[shipIndex]->m_fxMaxSpeed;
-        g_ships[shipIndex]->m_fxAngle = fix16_pi>>1;
-        g_ships[shipIndex]->m_activeWaypointIndex = 0;
+        g_ships[shipIndex]->SetAIAggressiveness(70);
 
         #endif
 
