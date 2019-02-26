@@ -15,12 +15,11 @@ public:
     void FindActiveWaypoint();
     void CalculateRank();
 
-    // Handle keys
+public: // From CShip
     virtual void SetImpulse( fix16_t fxImpulseAngle )
     {
+        CShip::SetImpulse(fxImpulseAngle);
         m_bitmap = billboard_object_bitmaps[2];  // red car
-        m_fxImpulseAcc = fix16_one<<2;
-        m_fxImpulseAngle = fxImpulseAngle; // -(fix16_pi>>2);
     }
 
 public: // From CAnimValueCallback
@@ -33,7 +32,6 @@ public: // From CAnimValueCallback
 public:
     uint32_t m_final_lap_time_ms;
     uint32_t m_start_ms;
-    bool m_isCollidedToPlayerShip;
     bool m_isCollided;
     int m_tonefreq;
     bool m_isTurningLeft;
