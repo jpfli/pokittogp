@@ -269,21 +269,25 @@ void CPlayerShip::FindActiveWaypoint()
     fix16_t fxDirX = fix16_from_int(waypoints[ lastCheckedWPIndex].x ) - m_fxX;
     fix16_t fxDirY = fix16_from_int(waypoints[ lastCheckedWPIndex].y ) - m_fxY;
 
-    // Calculate distance.
-    // Scale down so that it will not overflow
-    fix16_t fxX3 = fxDirX;
-    fix16_t fxY3 = fxDirY;
-    fxX3 >>= 4;
-    fxY3 >>= 4;
-    fix16_t fxDistanceToWaypoint = fix16_mul(fxX3, fxX3) + fix16_mul(fxY3,fxY3);
-    const fix16_t fxLimit = fix16_from_int(20*20);
-    if( fxDistanceToWaypoint < fxLimit>>4 )
-    {
-        m_activeWaypointIndex = lastCheckedWPIndex;
-        m_lastCheckedWPIndex = -1; // None checked
-        m_activeWaypointFoundTimeInMs = mygame.getTime();
-        m_doRecalcRank = true;
-        //m_waypointsVisited[ m_lastVisitedWPIndex ] = true;
+
+    // Direction vector to the current waypoint.
+    int16_t distX = waypoints[lastCheckedWPIndex].x - fix16_to_int(m_fxX);
+    int16_t distY = waypoints[lastCheckedWPIndex].y - fix16_to_int(m_fxY);
+    const int16_t radius = fix16_to_int(waypoints[lastCheckedWPIndex].fxRadius);
+
+    // Check ship's distance to the waypoint
+    if(radius >= distX && radius >= -distX && radius >= distY && radius >= -distY) {
+        // Ship is inside the bounding box of the waypoint
+
+        const int32_t distSq = distX*distX+distY*distY;
+        if(distSq <= radius*radius) {
+            // Ship is inside the waypoint radious.
+
+            m_activeWaypointIndex = lastCheckedWPIndex;
+            m_lastCheckedWPIndex = -1; // None checked
+            m_activeWaypointFoundTimeInMs = mygame.getTime();
+            m_doRecalcRank = true;
+        }
     }
 }
 
