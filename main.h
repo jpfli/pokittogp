@@ -133,7 +133,7 @@ extern const uint8_t* current_texture_bitmap_data_mm2[];
 extern uint8_t* g_spriteBitmaps[];
 extern CWaypoint waypoints[];
 //extern const CWaypoint waypointsROM[];
-extern uint32_t waypointCount;
+extern int32_t waypointCount;
 //extern const uint32_t waypointCountROM;
 extern const uint32_t waypointMaxCount;
 extern const CObject3d g_timeTrialBilboardObjects[];
