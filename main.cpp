@@ -70,7 +70,7 @@ uint8_t* g_spriteBitmaps[2] = {0};
 CObject3d g_BillboardObjectArray[g_BillboardObjectArrayMaxCount];
 CShip g_ShipObjectArray[1*8];
 CPlayerShip g_playerShip;
-uint32_t waypointCount = 22;
+int32_t waypointCount = 22;
 const uint32_t waypointMaxCount = 30;
 CWaypoint waypoints[waypointMaxCount];
 
