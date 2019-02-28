@@ -1,8 +1,9 @@
 #pragma once
 
 #include "main.h"
+#include "animation.h"
 
-class CShip : public CObject3d
+class CShip : public CObject3d, public CAnimValueCallback
 {
 public:
     enum TileType {
@@ -23,17 +24,8 @@ public:
     void SetAIAggressiveness(int8_t val) { m_fxCoef_aiAggr = fix16_one*(10000/(400-3*val))/100; }
 
 public:
-    fix16_t m_fxVel;
-    fix16_t m_fxAcc;
-    fix16_t m_fxDeacc;
     fix16_t m_fxAngle;
-    fix16_t m_fxRotVel;
-    fix16_t m_fxMaxSpeed;
-    fix16_t m_fxCornerSpeed1;
-    fix16_t m_fxCornerSpeed2;
     int32_t m_activeWaypointIndex;
-    fix16_t m_fxWaypointTargetSpeed;
-    //fix16_t m_fxLastDistanceToWaypoint;
     int32_t m_activeLapNum;
     LapTimingState m_lapTimingState;
 
@@ -42,6 +34,9 @@ public:
     // Impact
     fix16_t m_fxImpulseAcc;
     fix16_t m_fxImpulseAngle;
+
+    CAnimValue* m_jumpAnimValue;
+    CAnimValue* m_boosterAnimValue;
 
 
 // Physics based driving model:
@@ -56,6 +51,11 @@ public:
     void SetVelocity(fix16_t x, fix16_t y) { m_fxVel_x = ScaleFromGameCoords(x); m_fxVel_y = ScaleFromGameCoords(y); }
 
     bool IsSliding() const { return m_isSliding; }
+    bool IsGrounded() const { return m_isGrounded; }
+    bool IsBoosterActive() const { return m_booster; }
+
+    void StartBooster();
+    void StartJump();
 
     int8_t Steering() const { return m_steering; }
     void SetSteering(int8_t val) { m_steering = val; }
@@ -63,9 +63,6 @@ public:
     void SetThrottle(uint8_t val) { m_throttle = val; }
     uint8_t Braking() const { return m_braking; }
     void SetBraking(uint8_t val) { m_braking = val; }
-
-    void ToggleBooster(bool val) { m_booster = val; }
-    void ToggleGrounded(bool val) { m_isGrounded = val; }
 
     void PhysicsUpdate(TileType tileType);
 
@@ -113,6 +110,13 @@ private:
 
     inline static fix16_t ScaleFromGameCoords(fix16_t val) { return val>>3; }
     inline static fix16_t ScaleToGameCoords(fix16_t val) { return val<<3; }
+
+public: // From CAnimValueCallback
+
+    // When this is called the CAnimValue is finished and will be used for other tasks. The caller should either
+    // set a pointer to the CAnimValue object to NULL, or start another animation on the object.
+    // The parameter can be used e.g. for chained animations to indicate the state.
+    void Finished( int32_t par );
 
 private:
     struct PhysicsParameters {
