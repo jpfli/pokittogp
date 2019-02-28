@@ -35,6 +35,8 @@ CShip::CShip() :
     m_lapTimingState(enumReadyToStart),
     m_fxImpulseAcc(0),
     m_fxImpulseAngle(0),
+    m_jumpAnimValue(nullptr),
+    m_boosterAnimValue(nullptr),
 
     m_fxVel_x(0),
     m_fxVel_y(0),
@@ -50,23 +52,22 @@ CShip::CShip() :
 void CShip::Update()
 {
     // *** Check collision to road edges
-    bool collided = false;
-    uint8_t tileIndex = GetTileIndexCommon(fix16_to_int(m_fxX), fix16_to_int(m_fxY));
-    if(
-        tileIndex != 5 && tileIndex != 6 &&
-        (tileIndex < 11 || tileIndex > 15)
-    )
-    {
-        collided = true;
-    }
-
     TileType tileType = enumTrackTile;
+    uint8_t tileIndex = GetTileIndexCommon(fix16_to_int(m_fxX), fix16_to_int(m_fxY));
     if(tileIndex >= 1 && tileIndex <= 4) {
         tileType = enumEdgeTile;
     }
-    else if(tileIndex >= 7 && tileIndex <= 10) {
+    else if((tileIndex >= 7 && tileIndex <= 10) || tileIndex == 0) {
         tileType = enumTerrainTile;
     }
+    else if(tileIndex == 15) {
+        // Booster.
+        CShip::StartBooster();
+    }
+    // Jump disabled for AI.
+    //else if(tileIndex == 16) {
+    //    CShip::StartJump();
+    //}
 
     // Handle lap starting and ending detection.
     bool isOnStartingGrid = ( tileIndex >= 11 && tileIndex <= 14);
@@ -110,34 +111,9 @@ void CShip::Update()
     PhysicsUpdate(tileType);
     m_fxX += fix16_mul((fxVel_x0+VelocityX())>>1, DeltaTime());
     m_fxY += fix16_mul((fxVel_y0+VelocityY())>>1, DeltaTime());
-    m_fxVel = fix16_mul(fix16_cos(Yaw()), VelocityX())+fix16_mul(fix16_sin(Yaw()), VelocityY());
-    m_fxVel /= 35;
 
     // *** Physics end ***
 
-    // If colliding, slow down
-    if( collided ) {
-
-        // Break or stop
-        if(m_fxVel > fxMaxSpeedCollided)
-        {
-            m_fxVel -= (fix16_one>>4);
-            if(m_fxVel < 0)
-                m_fxVel = 0;
-        }
-        else if(m_fxVel < -fxMaxSpeedCollided)
-        {
-            m_fxVel += (fix16_one>>4);
-            if(m_fxVel > 0)
-                m_fxVel = 0;
-        }
-    }
-
-    // Limit speed
-    if(m_fxVel > m_fxMaxSpeed)
-        m_fxVel = m_fxMaxSpeed;
-    else if(m_fxVel < fxMaxSpeedCollided)
-        m_fxVel = fxMaxSpeedCollided;
 
     if( m_fxImpulseAcc != 0 )
     {
@@ -151,10 +127,6 @@ void CShip::Update()
         m_fxImpulseAcc = 0;
         m_fxImpulseAngle = 0;
     }
-
-    //m_fxX += fxVelX;
-    //m_fxY += fxVelY;
-
 }
 
 void CShip::SetImpulse( fix16_t fxImpulseAngle )
@@ -165,16 +137,15 @@ void CShip::SetImpulse( fix16_t fxImpulseAngle )
 
 void CShip::Reset()
 {
-    m_fxVel = 0;
-    m_fxAcc = fix16_from_float(0.200);
-    m_fxDeacc = fix16_from_float(3.0);
     m_fxAngle = fix16_pi>>1;
-    m_fxRotVel = fix16_pi / 100;
-    m_fxMaxSpeed = fix16_one*6;
-    m_fxCornerSpeed1 = fix16_one*6;
-    m_fxCornerSpeed2 = fix16_one*3;
-    m_fxWaypointTargetSpeed = m_fxMaxSpeed;
     m_activeWaypointIndex = 0;
+
+    if( m_jumpAnimValue )
+        m_jumpAnimValue->Reset();
+    m_jumpAnimValue = NULL;
+    if( m_boosterAnimValue )
+        m_boosterAnimValue->Reset();
+    m_boosterAnimValue = NULL;
 
     m_activeLapNum = 1;
     m_lapTimingState = enumReadyToStart;
@@ -276,6 +247,24 @@ void CShip::AIUpdate(TileType tileType)
     }
 }
 
+void CShip::StartBooster()
+{
+    if(!m_boosterAnimValue) {
+        m_boosterAnimValue = CAnimValue::GetFreeElement();
+        m_boosterAnimValue->Start(1000, fix16_one, fix16_one, this, 1);
+        m_booster = true;
+    }
+}
+
+void CShip::StartJump()
+{
+    if(!m_jumpAnimValue) {
+        m_jumpAnimValue = CAnimValue::GetFreeElement();
+        m_jumpAnimValue->Start(1500, 0, fix16_pi, this, 0);
+        m_isGrounded = false;
+    }
+}
+
 void CShip::PhysicsUpdate(TileType tileType)
 {
     // Apply drag
@@ -368,4 +357,17 @@ fix16_t CShip::CalculateBrakingDistance(fix16_t fxSpeed, TileType tileType)
     }
     fxSpeed = ScaleFromGameCoords(fxSpeed);
     return ScaleToGameCoords(fix16_div(fix16_mul(fxSpeed, fxSpeed), fxDDVel)>>1);
+}
+
+// Animation finished.
+void CShip::Finished(int32_t par)
+{
+    if(par == 0) {
+        m_jumpAnimValue = nullptr;
+        m_isGrounded = true;
+    }
+    else if(par == 1) {
+        m_boosterAnimValue = nullptr;
+        m_booster = false;
+    }
 }
