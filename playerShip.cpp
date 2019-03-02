@@ -6,15 +6,14 @@
 const uint8_t amplitude = 170;
 const int8_t arpmode=0;
 
-CPlayerShip::CPlayerShip()
+CPlayerShip::CPlayerShip() :
+    m_final_lap_time_ms(0),
+    m_start_ms(0),
+    m_tonefreq(0),
+    m_fxCameraBehindPlayerTarget(fxCameraBehindPlayerY),
+    m_fxCameraBehindPlayerCurrent(fxCameraBehindPlayerY),
+    m_fxSteeringValue(0)
 {
-    m_final_lap_time_ms = 0;
-    m_start_ms = 0;
-
-    // *** Setup sound
-    m_tonefreq=0;
-    m_fxCameraBehindPlayerTarget = fxCameraBehindPlayerY;
-    m_fxCameraBehindPlayerCurrent = fxCameraBehindPlayerY;
 }
 
 void CPlayerShip::Update()
@@ -234,7 +233,7 @@ void CPlayerShip::CalculateRank()
 {
     int32_t numOfCarsWithBetterRank = 0;
     int8_t activeWaypointIndex = m_activeWaypointIndex + 1;  // active waypoint is 1 less for player than for other ships
-    for(int32_t i=1; i < g_shipCount; i++)
+    for(uint32_t i=1; i < g_shipCount; i++)
     {
         if(g_ships[i]->m_activeLapNum > m_activeLapNum) {
             numOfCarsWithBetterRank++;
@@ -271,6 +270,8 @@ void CPlayerShip::Reset()
     m_activeWaypointIndex = -1;
     m_lastCheckedWPIndex = -1;
     m_activeWaypointFoundTimeInMs = 0;
+
+    m_fxSteeringValue = 0;
  }
 
 // Handle keys
@@ -284,17 +285,33 @@ void CPlayerShip::HandleGameKeys()
     if( mygame.buttons.aBtn() && mygame.buttons.bBtn() && mygame.buttons.cBtn() )
         CalcFreeRamAndHang();
 
+    // Smooth steering, gradually increases steering value from 0 to 100 in 0.15 seconds
+    fix16_t fxRate = 100*1/(40*0.15)*fix16_one;
     // Turn left
     if(mygame.buttons.leftBtn()) {
-        CShip::SetSteering(100);
+        m_fxSteeringValue += fxRate;
+        if(m_fxSteeringValue < 0) {
+            m_fxSteeringValue = fxRate;
+        }
+        else if(m_fxSteeringValue > 100*fix16_one) {
+            m_fxSteeringValue = 100*fix16_one;
+        }
+        CShip::SetSteering(fix16_to_int(m_fxSteeringValue));
     }
     // Turn right
     else if(mygame.buttons.rightBtn()) {
-        CShip::SetSteering(-100);
+        m_fxSteeringValue -= fxRate;
+        if(m_fxSteeringValue > 0) {
+            m_fxSteeringValue = -fxRate;
+        }
+        else if(m_fxSteeringValue < -100*fix16_one) {
+            m_fxSteeringValue = -100*fix16_one;
+        }
     }
     else {
-        CShip::SetSteering(0);
+        m_fxSteeringValue = 0;
     }
+    CShip::SetSteering(fix16_to_int(m_fxSteeringValue));
 
     CShip::SetThrottle(0);
     CShip::SetBraking(0);
