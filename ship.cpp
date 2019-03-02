@@ -3,31 +3,8 @@
 #include "fix16.h"
 #include "ship.h"
 
-CShip::PhysicsParameters CShip::m_physParmsArray[3] = {
-    { // Track
-        (fix16_t)(1.5*9.81*fix16_one),
-        (fix16_t)(1.3*9.81*fix16_one),
-        (fix16_t)(2000/(m_mass+2000*1.0/30)*fix16_one),
-        (fix16_t)(0.020*fix16_one)
-    }, { // Terrain
-        (fix16_t)(0.5*9.81*fix16_one),
-        (fix16_t)(0.5*9.81*fix16_one),
-        (fix16_t)(500/(m_mass+1000*1.0/30)*fix16_one),
-        (fix16_t)(0.25*fix16_one)
-    }, { // Edge
-        (fix16_t)(1.3*9.81*fix16_one),
-        (fix16_t)(1.1*9.81*fix16_one),
-        (fix16_t)(2000/(m_mass+2000*1.0/30)*fix16_one),
-        (fix16_t)(0.030*fix16_one)
-    }
-};
-
-CShip::ShipParameters CShip::m_shipParms = {
-    (fix16_t)(2*fix16_pi/180/100), // turn coefficient
-    (fix16_t)(3.5*fix16_one/100),  // thrust coefficient
-    (fix16_t)(0.9*m_fxGravity/100)   // brake coefficient
-};
-
+CShip::PhysicsParameters CShip::m_physParmsArray[3];
+CShip::ShipParameters CShip::m_shipParms;
 
 CShip::CShip() :
     m_fxAngle(0),
@@ -337,7 +314,7 @@ void CShip::SetPhysicsParameters(TileType type, fix16_t fxStaticFriction, fix16_
 {
     m_physParmsArray[type].fxDDVel_fs = fix16_mul(fxStaticFriction, m_fxGravity);
     m_physParmsArray[type].fxDDVel_fk = fix16_mul(fxKineticFriction, m_fxGravity);
-    m_physParmsArray[type].fxSlipFactor = fix16_div(tractionConstant, m_mass*fix16_one+tractionConstant*m_fxDeltaTime);
+    m_physParmsArray[type].fxSlipFactor = fix16_div(tractionConstant*fix16_one, m_mass*fix16_one+tractionConstant*m_fxDeltaTime);
     m_physParmsArray[type].fxCoef_rr = fix16_mul(fxRollingResistance, m_fxGravity);
 }
 
@@ -346,6 +323,18 @@ void CShip::SetShipParameters(fix16_t fxMaxTurn, fix16_t fxMaxThrust, fix16_t fx
     m_shipParms.fxCoef_turn = fxMaxTurn/100;
     m_shipParms.fxCoef_thrust = fxMaxThrust/100;
     m_shipParms.fxCoef_brake = fix16_mul(fxMaxBrake, m_fxGravity)/100;
+}
+
+void CShip::ResetDefaultPhysicsParameters()
+{
+    SetPhysicsParameters(enumTrackTile, 2.0*fix16_one, 1.9*fix16_one, 1500, 0.02*fix16_one);
+    SetPhysicsParameters(enumTerrainTile, 0.9*fix16_one, 0.9*fix16_one, 500, 0.2*fix16_one);
+    SetPhysicsParameters(enumEdgeTile, 1.5*fix16_one, 1.4*fix16_one, 1500, 0.05*fix16_one);
+}
+
+void CShip::ResetDefaultShipParameters()
+{
+    SetShipParameters(2*fix16_pi/180, 6.0*fix16_one, 0.9*fix16_one);
 }
 
 fix16_t CShip::CalculateBrakingDistance(fix16_t fxSpeed, TileType tileType)
