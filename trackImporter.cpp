@@ -5,6 +5,7 @@
 #include "imageformat.h"
 #include "objects_txt.h"
 #include "track_txt.h"
+#include "ship.h"
 
 const char lineFeed = 10, carriageReturn=13;
 
@@ -16,6 +17,10 @@ bool TrackImporter::ReadFromFileAndValidateTrack(
     mygame.display.setColor(1,1);
     mygame.display.fillRect(0, 0, screenW, screenH);
     mygame.display.setColor(2,1);
+
+    // Reset default physics and ship parameters in case they aren't set in track file
+    CShip::ResetDefaultPhysicsParameters();
+    CShip::ResetDefaultShipParameters();
 
     // Read the track ascii file from SD
     char myTrack1[mapTotalSizeinFile*2] = {0};
@@ -43,7 +48,50 @@ bool TrackImporter::ReadFromFileAndValidateTrack(
     fileClose(); // close any open files
 
     // Read and validate the track.
-    return ReadAndValidateTrack( myTrack1, len, trackDirName, trackFileName, /*OUT*/myTrack2, /*OUT*/trackName, /*OUT*/authorName );
+    if(!ReadAndValidateTrack( myTrack1, len, trackDirName, trackFileName, /*OUT*/myTrack2, /*OUT*/trackName, /*OUT*/authorName )) {
+        return false;
+    }
+
+    if(!ReadPhysicsParameters(myTrack1, len)) {
+        return false;
+    }
+    return true;
+}
+
+bool TrackImporter::ReadPhysicsParameters(char* myTrack1, int32_t blockSize) {
+    char* bufPtr = myTrack1;
+    char* endPtr = myTrack1+blockSize;
+    char* foundPtr = strstr(bufPtr, "physics]");
+    if(foundPtr) {
+        bufPtr = foundPtr+strlen("physics]");
+        // Skip extra space, LF and CR chars
+        while(bufPtr < endPtr && (*bufPtr == lineFeed || *bufPtr == carriageReturn || *bufPtr == ' ')) {
+            bufPtr++;
+        }
+
+        while(bufPtr < endPtr && *bufPtr != '[') {
+            // Physics parameters
+            int32_t tileId;
+            int32_t fr_s;
+            int32_t fr_k;
+            int32_t traction;
+            int32_t rr;
+            bufPtr = ReadValue(bufPtr, endPtr, /*OUT*/ tileId);
+            bufPtr = ReadValue(bufPtr, endPtr, /*OUT*/ fr_s);
+            bufPtr = ReadValue(bufPtr, endPtr, /*OUT*/ fr_k);
+            bufPtr = ReadValue(bufPtr, endPtr, /*OUT*/ traction);
+            bufPtr = ReadValue(bufPtr, endPtr, /*OUT*/ rr);
+
+            // Set track parameters
+            CShip::TileType tileType = CShip::enumTerrainTile;
+            switch(tileId) {
+                case 0: tileType = CShip::enumTrackTile; break;
+                case 2: tileType = CShip::enumEdgeTile; break;
+            }
+            CShip::SetPhysicsParameters(tileType, fr_s*fix16_one/100, fr_k*fix16_one/100, traction, rr*fix16_one/100);
+        }
+    }
+    return true;
 }
 
 bool TrackImporter::ReadFromROMAndValidateTrack(
@@ -53,6 +101,9 @@ bool TrackImporter::ReadFromROMAndValidateTrack(
     mygame.display.setColor(1,1);
     mygame.display.fillRect(0, 0, screenW, screenH);
     mygame.display.setColor(2,1);
+
+    CShip::ResetDefaultPhysicsParameters();
+    CShip::ResetDefaultShipParameters();
 
     // Read the track ascii file from SD
     char myTrack1[mapTotalSizeinFile*2] = {0};
@@ -224,6 +275,7 @@ bool TrackImporter::ReadAndValidateTrack( char* myTrack1, uint16_t len, char* tr
         //mygame.display.print(1, 70, "Line:");mygame.display.print(currentLineNum+3);
         //return false;
     }
+    return true;
 }
 
 // Read the track objects ascii file from SD
