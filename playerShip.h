@@ -33,4 +33,7 @@ public:
     CMenu::MenuMode m_requestedMenuMode;
     int8_t m_lastCheckedWPIndex;
     uint32_t m_activeWaypointFoundTimeInMs;
+
+private:
+    fix16_t m_fxSteeringValue;
 };
