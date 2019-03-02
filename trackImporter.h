@@ -54,6 +54,8 @@ namespace TrackImporter
     bool ReadAndValidateTrack( char* myTrack1, uint16_t len, char* trackDirName, char* trackFileName,
         /*OUT*/char* myTrack2, /*OUT*/char* trackName, /*OUT*/char* authorName );
 
+    bool ReadPhysicsParameters(char* myTrack1, int32_t blockSize);
+
     bool ReadTrackObjectsFromROM();
     // Read the track objects ascii file from SD
     bool ReadTrackObjectsFromFile( char* trackPath, char* trackDirName );
