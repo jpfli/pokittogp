@@ -58,18 +58,20 @@ public:
     void StartJump();
 
     int8_t Steering() const { return m_steering; }
-    void SetSteering(int8_t val) { m_steering = val; }
+    void SetSteering(int8_t val) { if(val > 100) m_steering = 100; else if(val < -100) m_steering = 100; else {m_steering = val; } }
     uint8_t Throttle() const { return m_throttle; }
-    void SetThrottle(uint8_t val) { m_throttle = val; }
+    void SetThrottle(uint8_t val) { if(val > 100) m_throttle = 100; else {m_throttle = val; } }
     uint8_t Braking() const { return m_braking; }
-    void SetBraking(uint8_t val) { m_braking = val; }
+    void SetBraking(uint8_t val) { if(val > 100) m_braking = 100; else {m_braking = val; } }
 
     void PhysicsUpdate(TileType tileType);
 
-    void SetPhysicsParameters(TileType type, fix16_t fxStaticFriction, fix16_t fxKineticFriction, uint16_t fxTractionConstant, fix16_t fxRollingResistance);
-    void SetShipParameters(fix16_t fxMaxSteering, fix16_t fxMaxThrust, fix16_t fxMaxBraking);
+    static void SetPhysicsParameters(TileType type, fix16_t fxStaticFriction, fix16_t fxKineticFriction, uint16_t fxTractionConstant, fix16_t fxRollingResistance);
+    static void SetShipParameters(fix16_t fxMaxSteering, fix16_t fxMaxThrust, fix16_t fxMaxBraking);
+    static void ResetDefaultPhysicsParameters();
+    static void ResetDefaultShipParameters();
 
-    fix16_t CalculateBrakingDistance(fix16_t fxSpeed, TileType tileType);
+    static fix16_t CalculateBrakingDistance(fix16_t fxSpeed, TileType tileType);
 
 private:
     constexpr static fix16_t m_fxNpcSteeringDeadzone = fix16_pi*2.0/180;
@@ -146,7 +148,7 @@ private:
     bool m_booster; // booster on/off
 
     // Physics constants
-    constexpr static fix16_t m_fxDeltaTime = 1.0/30*fix16_one; //time between updates
+    constexpr static fix16_t m_fxDeltaTime = 1.0/40*fix16_one; //time between updates
     constexpr static fix16_t m_fxGravity = 9.81*fix16_one;
     constexpr static fix16_t m_fxDensity_air = 1.29*fix16_one;
     constexpr static fix16_t m_fxArea_crsect = 2.2*fix16_one;
@@ -159,19 +161,3 @@ private:
     static ShipParameters m_shipParms;
 };
 
-// Example friction and rolling resistance coefficients
-//
-// Fomula car
-//                frict_s:   coef_rr:
-// * dry asphalt  1.5        0.020
-//
-// High perfomance car
-//                frict_s:   coef_rr:
-// * dry asphalt  1.00       0.014
-// * wet asphalt  0.70       0.017
-// * dry earth    0.65       0.050
-// * wet earth    0.55       0.080
-// * gravel       0.60       0.020
-// * sand         0.60       0.030
-// * packed snow  0.15       0.016
-// * ice          0.08       0.014
