@@ -68,8 +68,8 @@ void CPlayerShip::Update()
     fix16_t fxVel_x0 = CShip::VelocityX();
     fix16_t fxVel_y0 = CShip::VelocityY();
     CShip::PhysicsUpdate(contactTileType);
-    m_fxX += fix16_mul((fxVel_x0+CShip::VelocityX())>>1, CShip::DeltaTime());
-    m_fxY += fix16_mul((fxVel_y0+CShip::VelocityY())>>1, CShip::DeltaTime());
+    m_fxX += fix16_mul((fxVel_x0+CShip::VelocityX())>>1, CShip::PhysicsDeltaTime());
+    m_fxY += fix16_mul((fxVel_y0+CShip::VelocityY())>>1, CShip::PhysicsDeltaTime());
     // ======================================
 
     if( m_fxImpulseAcc != 0 )
@@ -286,7 +286,7 @@ void CPlayerShip::HandleGameKeys()
         CalcFreeRamAndHang();
 
     // Smooth steering, gradually increases steering value from 0 to 100 in 0.15 seconds
-    fix16_t fxRate = 100*1/(40*0.15)*fix16_one;
+    fix16_t fxRate = 8*100*CShip::PhysicsDeltaTime();
     // Turn left
     if(mygame.buttons.leftBtn()) {
         m_fxSteeringValue += fxRate;
