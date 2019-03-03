@@ -14,6 +14,9 @@ public:
 
 public:
     CShip();
+
+    static void UpdateStarted();
+
     virtual void Update();
     virtual void Reset();
     virtual void SetImpulse( fix16_t fxImpulseAngle );
@@ -41,7 +44,7 @@ public:
 
 // Physics based driving model:
 public:
-    fix16_t DeltaTime() const { return m_fxDeltaTime; }
+    fix16_t PhysicsDeltaTime() const { return m_fxDeltaTime; }
 
     fix16_t Yaw() const { return m_fxAngle; }
     void SetYaw(fix16_t angle) { m_fxAngle = angle; }
@@ -66,7 +69,7 @@ public:
 
     void PhysicsUpdate(TileType tileType);
 
-    static void SetPhysicsParameters(TileType type, fix16_t fxStaticFriction, fix16_t fxKineticFriction, uint16_t fxTractionConstant, fix16_t fxRollingResistance);
+    static void SetPhysicsParameters(TileType type, fix16_t fxStaticFriction, fix16_t fxKineticFriction, uint16_t tractionConstant, fix16_t fxRollingResistance);
     static void SetShipParameters(fix16_t fxMaxSteering, fix16_t fxMaxThrust, fix16_t fxMaxBraking);
     static void ResetDefaultPhysicsParameters();
     static void ResetDefaultShipParameters();
@@ -75,7 +78,7 @@ public:
 
 private:
     constexpr static fix16_t m_fxNpcSteeringDeadzone = fix16_pi*2.0/180;
-    constexpr static fix16_t m_fxCoef_npcNominalSpeed = 250.0*fix16_one/100;
+    constexpr static fix16_t m_fxCoef_npcNominalSpeed = 288.0*fix16_one/100;
 
     // A more accurate fix16 sin function
     static fix16_t sin_taylor(fix16_t radians ) {
@@ -110,8 +113,8 @@ private:
 
     inline static fix16_t cos_taylor(fix16_t radians) { return sin_taylor(radians+(fix16_pi>>1)); }
 
-    inline static fix16_t ScaleFromGameCoords(fix16_t val) { return val>>3; }
-    inline static fix16_t ScaleToGameCoords(fix16_t val) { return val<<3; }
+    inline static fix16_t ScaleFromGameCoords(fix16_t val) { return val>>4; }
+    inline static fix16_t ScaleToGameCoords(fix16_t val) { return val<<4; }
 
 public: // From CAnimValueCallback
 
@@ -124,7 +127,7 @@ private:
     struct PhysicsParameters {
         fix16_t fxDDVel_fs;
         fix16_t fxDDVel_fk;
-        fix16_t fxSlipFactor;
+        uint16_t traction;
         fix16_t fxCoef_rr;
     };
 
@@ -135,7 +138,6 @@ private:
     };
 
     // Physics state variables
-    //fix16_t m_fxAngle; // ship nose direction in radians
     fix16_t m_fxVel_x;
     fix16_t m_fxVel_y;
     bool m_isSliding;
@@ -147,17 +149,15 @@ private:
     uint8_t m_braking; // amount of braking [0..100]
     bool m_booster; // booster on/off
 
-    // Physics constants
-    constexpr static fix16_t m_fxDeltaTime = 1.0/40*fix16_one; //time between updates
-    constexpr static fix16_t m_fxGravity = 9.81*fix16_one;
-    constexpr static fix16_t m_fxDensity_air = 1.29*fix16_one;
-    constexpr static fix16_t m_fxArea_crsect = 2.2*fix16_one;
-    constexpr static fix16_t m_fxCoef_drag = 0.30*fix16_one; // air resistance
-    constexpr static uint16_t m_mass = 650;
-
-    constexpr static fix16_t m_fxFactor_drag = (m_fxDensity_air*(m_fxArea_crsect*(m_fxCoef_drag*m_fxDeltaTime/fix16_one)/fix16_one)/fix16_one)/2;
-
     static PhysicsParameters m_physParmsArray[3];
     static ShipParameters m_shipParms;
+    static fix16_t m_fxDeltaTime; //time between updates
+    static uint32_t m_prevFrameTimeInMs;
+
+    // Physics constants
+    constexpr static fix16_t m_fxGravity = 9.81*fix16_one;
+    constexpr static uint16_t m_mass = 650;
+    // 1/2 * [air density] * [ship cross sectional area] * [air resistance]
+    constexpr static fix16_t m_fxFactor_drag = 1.29*2.2*0.30*fix16_one/2;
 };
 
