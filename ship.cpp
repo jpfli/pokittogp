@@ -5,6 +5,8 @@
 
 CShip::PhysicsParameters CShip::m_physParmsArray[3];
 CShip::ShipParameters CShip::m_shipParms;
+fix16_t CShip::m_fxDeltaTime(0);
+uint32_t CShip::m_prevFrameTimeInMs(0);
 
 CShip::CShip() :
     m_fxAngle(0),
@@ -24,6 +26,17 @@ CShip::CShip() :
     m_braking(0),
     m_booster(false)
 {
+}
+
+void CShip::UpdateStarted()
+{
+    uint32_t interval = g_currentFrameTimeInMs-m_prevFrameTimeInMs;
+    // Keep simulation perioid 30 ms or shorter
+    if(interval > 30) {
+        interval = 30;
+    }
+    m_prevFrameTimeInMs = g_currentFrameTimeInMs;
+    m_fxDeltaTime = fix16_from_int(interval)/1000;
 }
 
 void CShip::Update()
@@ -86,8 +99,8 @@ void CShip::Update()
     fix16_t fxVel_x0 = VelocityX();
     fix16_t fxVel_y0 = VelocityY();
     PhysicsUpdate(tileType);
-    m_fxX += fix16_mul((fxVel_x0+VelocityX())>>1, DeltaTime());
-    m_fxY += fix16_mul((fxVel_y0+VelocityY())>>1, DeltaTime());
+    m_fxX += fix16_mul((fxVel_x0+VelocityX())>>1, m_fxDeltaTime);
+    m_fxY += fix16_mul((fxVel_y0+VelocityY())>>1, m_fxDeltaTime);
 
     // *** Physics end ***
 
@@ -139,8 +152,9 @@ void CShip::Reset()
     m_steering = 0;
     m_throttle = 0;
     m_braking = 0;
-
     m_booster = false;
+
+    m_prevFrameTimeInMs = g_currentFrameTimeInMs;
 }
 
 void CShip::AIUpdate(TileType tileType)
@@ -245,8 +259,8 @@ void CShip::StartJump()
 void CShip::PhysicsUpdate(TileType tileType)
 {
     // Apply drag
-    m_fxVel_x -= fix16_mul(abs(m_fxVel_x), fix16_mul(m_fxVel_x, m_fxFactor_drag))/m_mass;
-    m_fxVel_y -= fix16_mul(abs(m_fxVel_y), fix16_mul(m_fxVel_y, m_fxFactor_drag))/m_mass;
+    m_fxVel_x -= fix16_mul(abs(m_fxVel_x), fix16_mul(m_fxVel_x, fix16_mul(m_fxDeltaTime, m_fxFactor_drag)))/m_mass;
+    m_fxVel_y -= fix16_mul(abs(m_fxVel_y), fix16_mul(m_fxVel_y, fix16_mul(m_fxDeltaTime, m_fxFactor_drag)))/m_mass;
 
     // Calculate velocity component parallel to wheel direction
     fix16_t fxDir_x = cos_taylor(m_fxAngle);
@@ -260,7 +274,7 @@ void CShip::PhysicsUpdate(TileType tileType)
 
     // Apply steering to ship direction
     if(0 != m_steering) {
-        m_fxAngle += m_shipParms.fxCoef_turn*m_steering;
+        m_fxAngle += fix16_mul(m_shipParms.fxCoef_turn, m_fxDeltaTime)*m_steering;
         if((fix16_pi<<1) < m_fxAngle) { m_fxAngle -= (fix16_pi<<1); }
         else if(0 > m_fxAngle) { m_fxAngle += (fix16_pi<<1); }
         fxDir_x = cos_taylor(m_fxAngle);
@@ -270,9 +284,10 @@ void CShip::PhysicsUpdate(TileType tileType)
     m_isSliding = false;
     if(m_isGrounded) {
         PhysicsParameters* physParms = &m_physParmsArray[tileType];
+        fix16_t fxSlipFactor = fix16_div(fix16_from_int(physParms->traction), fix16_from_int(m_mass)+physParms->traction*m_fxDeltaTime);
 
         // Calculate tire velocity change caused by rolling resistance and braking
-        fix16_t fxDeltaVel_lon = fix16_div(physParms->fxCoef_rr+m_braking*m_shipParms.fxCoef_brake, physParms->fxSlipFactor);
+        fix16_t fxDeltaVel_lon = fix16_div(physParms->fxCoef_rr+m_braking*m_shipParms.fxCoef_brake, fxSlipFactor);
         if(fxDeltaVel_lon < fxSpeed_w) {
             fxSpeed_w -= fxDeltaVel_lon;
         }
@@ -291,7 +306,7 @@ void CShip::PhysicsUpdate(TileType tileType)
         fix16_t fxSlip = fix16_mul(cos_taylor(fxSlip_angle), fxSlip_x)+fix16_mul(sin_taylor(fxSlip_angle), fxSlip_y);
 
         // Calculate traction from tire slip
-        fix16_t fxDeltaVel = fix16_mul(fxSlip, physParms->fxSlipFactor);
+        fix16_t fxDeltaVel = fix16_mul(fxSlip, fxSlipFactor);
         if(fxDeltaVel > physParms->fxDDVel_fs) {
             fxDeltaVel = physParms->fxDDVel_fk;
             m_isSliding = true;
@@ -314,7 +329,7 @@ void CShip::SetPhysicsParameters(TileType type, fix16_t fxStaticFriction, fix16_
 {
     m_physParmsArray[type].fxDDVel_fs = fix16_mul(fxStaticFriction, m_fxGravity);
     m_physParmsArray[type].fxDDVel_fk = fix16_mul(fxKineticFriction, m_fxGravity);
-    m_physParmsArray[type].fxSlipFactor = fix16_div(tractionConstant*fix16_one, m_mass*fix16_one+tractionConstant*m_fxDeltaTime);
+    m_physParmsArray[type].traction = tractionConstant;
     m_physParmsArray[type].fxCoef_rr = fix16_mul(fxRollingResistance, m_fxGravity);
 }
 
@@ -327,14 +342,14 @@ void CShip::SetShipParameters(fix16_t fxMaxTurn, fix16_t fxMaxThrust, fix16_t fx
 
 void CShip::ResetDefaultPhysicsParameters()
 {
-    SetPhysicsParameters(enumTrackTile, 2.0*fix16_one, 1.9*fix16_one, 1500, 0.02*fix16_one);
+    SetPhysicsParameters(enumTrackTile, 1.5*fix16_one, 1.4*fix16_one, 1500, 0.02*fix16_one);
     SetPhysicsParameters(enumTerrainTile, 0.9*fix16_one, 0.9*fix16_one, 500, 0.2*fix16_one);
-    SetPhysicsParameters(enumEdgeTile, 1.5*fix16_one, 1.4*fix16_one, 1500, 0.05*fix16_one);
+    SetPhysicsParameters(enumEdgeTile, 1.2*fix16_one, 1.1*fix16_one, 1500, 0.05*fix16_one);
 }
 
 void CShip::ResetDefaultShipParameters()
 {
-    SetShipParameters(2*fix16_pi/180, 6.0*fix16_one, 0.9*fix16_one);
+    SetShipParameters(90*fix16_pi/180, 4.0*fix16_one, 0.9*fix16_one);
 }
 
 fix16_t CShip::CalculateBrakingDistance(fix16_t fxSpeed, TileType tileType)
