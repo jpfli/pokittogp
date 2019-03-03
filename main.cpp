@@ -256,6 +256,8 @@ int main () {
             {
                 // No menu opean
 
+                CShip::UpdateStarted();
+
                 // Race is ongoing. Move all the ships
                 if( g_isRace )
                 {
